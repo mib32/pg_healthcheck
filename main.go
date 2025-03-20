@@ -32,8 +32,18 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Attempt database connection
-	conn, err := pgx.Connect(ctx, *dsn)
+	// Parse the connection string into a pgx.ConnConfig
+	connConfig, err := pgx.ParseConfig(*dsn)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse DSN: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Disable prepared statement caching
+	connConfig.PreferSimpleProtocol = true
+
+	// Connect to PostgreSQL
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Database connection failed: %v", err), http.StatusServiceUnavailable)
 		return
